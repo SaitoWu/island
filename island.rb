@@ -2,8 +2,9 @@ require 'rubygems'
 require 'bundler/setup'
 
 require 'yaml'
-require 'pry'
 require 'rugged'
+require 'linguist'
+require 'tempfile'
 
 module Island
   extend self
@@ -13,14 +14,16 @@ module Island
     ref = repo.head.name if not ref
     master = Rugged::Reference.lookup(repo, ref)
 
-    visit repo, repo.lookup(master.target).tree
+    visit repo, File.basename(ref), repo.lookup(master.target).tree, ""
   end
 
   private
   def yml
     YAML::load_file(
-      File.join(File.dirname(File.expand_path(__FILE__)), 'config.yml')
-    )
+      File.join(
+        File.dirname(
+          File.expand_path(__FILE__)
+        ), 'config.yml'))
   end
 
   def path
@@ -31,13 +34,28 @@ module Island
     yml['repository']['ref']
   end
 
-  def visit repo, tree
+  def visit repo, ref, tree, path
     tree.each do |t|
       if t[:type] == :blob
-        # p File.basename(repo.path, '.git') if not repo.workdir
-        p t[:name]
+        filepath = File.join(ref, path, t[:name])
+        blob = repo.lookup(t[:oid])
+
+        # create a tempfile for linguist
+        tempfile = Tempfile.new([t[:name], File.extname(t[:name])])
+        tempfile.write(blob.content)
+        tempfile.close
+
+        fileblob = Linguist::FileBlob.new(tempfile.path)
+        if fileblob.indexable? and language = fileblob.language
+          p Hash[%w[name size path encoding language content].zip(
+            [t[:name], blob.size, filepath, fileblob.encoding, language.name, fileblob.data]
+          )]
+        end
+
+        # unlink tempfile
+        tempfile.unlink
       else
-        visit repo, repo.lookup(t[:oid])
+        visit repo, ref, repo.lookup(t[:oid]), "#{t[:name]}"
       end
     end
   end

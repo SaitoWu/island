@@ -4,6 +4,7 @@ source "https://rubygems.org"
 gem "tire"
 gem "rugged"
 gem "sinatra"
+gem "github-linguist"
 
 gem "puma"
 
