@@ -1,10 +1,9 @@
-require 'rubygems'
-require 'bundler/setup'
-
 require 'yaml'
 require 'rugged'
 require 'linguist'
 require 'tempfile'
+
+require_relative 'island/encode'
 
 module Island
   extend self
@@ -23,7 +22,7 @@ module Island
       File.join(
         File.dirname(
           File.expand_path(__FILE__)
-        ), 'config.yml'))
+        ), '..', 'config.yml'))
   end
 
   def path
@@ -48,7 +47,7 @@ module Island
         fileblob = Linguist::FileBlob.new(tempfile.path)
         if fileblob.indexable? and language = fileblob.language
           p Hash[%w[name size path encoding language content].zip(
-            [t[:name], blob.size, filepath, fileblob.encoding, language.name, fileblob.data]
+            [t[:name], blob.size, filepath, fileblob.encoding, language.name, Island.encode!(fileblob.data)]
           )]
         end
 
